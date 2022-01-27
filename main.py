@@ -101,7 +101,6 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
     oled.text(f"A. Anular ",0,20)
     oled.text(f"B. Borrar ",0,30)
     oled.text(f"C. Confirmar ",0,40)
-    utime.sleep(5)
     oled.show()
     tecla_presionada_bool=True
     ultima_tecla_presionada=''
@@ -123,20 +122,53 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
                     if datatecla=="C":
                         ultima_tecla_presionada=ultima_tecla_presionada.rstrip(ultima_tecla_presionada[-1])
                         tecla_presionada_bool=False 
+                        break
                     oled.fill(0)
                     oled.text(ultima_tecla_presionada,0,0)
                     oled.show()
-
+    oled.fill(0)
+    oled.text(f"# de celular",0,0)
+    oled.text(f"Opciones: ",20,10)
+    oled.text(f"A. Anular ",0,20)
+    oled.text(f"B. Borrar ",0,30)
+    oled.text(f"C. Confirmar ",0,40)
+    oled.show()
+    tecla_presionada_bool=True
+    ultima_tecla_presionada_celular=''
+    while tecla_presionada_bool:
+        for fila in range(4):
+            for columna in range(4):
+                tecla=scan(fila,columna)
+                if tecla==tecla_Abajo:
+                    print("Tecla presionada", teclas[fila][columna])
+                    utime.sleep(0.2)
+                    datatecla=teclas[fila][columna]
+                    ultima_tecla_presionada_celular+=datatecla
+                    if datatecla=="A":
+                        ultima_tecla_presionada_celular=""
+                    if datatecla=="B":
+                        ultima_tecla_presionada_celular=ultima_tecla_presionada_celular.rstrip(ultima_tecla_presionada_celular[-1])
+                        if len(ultima_tecla_presionada_celular)>1:
+                            ultima_tecla_presionada_celular=ultima_tecla_presionada_celular.rstrip(ultima_tecla_presionada_celular[-1])
+                    if datatecla=="C":
+                        ultima_tecla_presionada_celular=ultima_tecla_presionada_celular.rstrip(ultima_tecla_presionada_celular[-1])
+                        tecla_presionada_bool=False 
+                        break
+                    oled.fill(0)
+                    oled.text(ultima_tecla_presionada_celular,0,0)
+                    oled.show()
+    # sintomas teclado
     oled.fill(0)
     oled.text(f"Sintomas:1.Vomito",0,0)
     oled.text(f"2.Diarrea.3.Gripa",0,10)
     oled.text(f"4.Dolor cabeza ",0,20)
     oled.text(f"5.Malestar.6.ojos",0,30)
-    oled.text(f"6.Asma.7.Tos ",0,40)
-    oled.text(f"8.Corazon. 9.Lol ",0,50)
+    oled.text(f"7.Asma.8.Tos ",0,40)
+    oled.text(f"9.Corazon. ",0,50)
     oled.show()               
     tecla_presionada_bool_sintomas=True
-    ultima_tecla_presionada_sintomas=[]
+    ultima_tecla_presionada_sintomas=""
+    sintomas=[]
     while tecla_presionada_bool_sintomas:
         for fila in range(4):
             for columna in range(4):
@@ -154,13 +186,38 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
                             ultima_tecla_presionada_sintomas=ultima_tecla_presionada_sintomas.rstrip(ultima_tecla_presionada_sintomas[-1])
                     if datatecla=="C":
                         ultima_tecla_presionada_sintomas=ultima_tecla_presionada_sintomas.rstrip(ultima_tecla_presionada_sintomas[-1])
-                        tecla_presionada_bool=False 
-                        pass
+                        tecla_presionada_bool_sintomas=False 
+                        break
+                    if datatecla=="1":
+                        sintomas.append("Vomito ")
+                    if datatecla=="2":
+                        sintomas.append("Diarrea ")
+                    if datatecla=="3":
+                        sintomas.append("Gripa ")
+                    if datatecla=="4":
+                        sintomas.append("Dolor cabeza ")
+                    if datatecla=="5":
+                        sintomas.append("Malestar ")
+                    if datatecla=="6":
+                        sintomas.append("ojos ")
+                    if datatecla=="7":
+                        sintomas.append("Asma ")
+                    if datatecla=="8":
+                        sintomas.append("Tos ")
+                    if datatecla=="9":
+                        sintomas.append("Corazon ")
                     oled.fill(0)
                     oled.text(ultima_tecla_presionada_sintomas,0,0)
                     oled.show()
-                    
     print(ultima_tecla_presionada)
+    sintomas_data = []
+    for item in sintomas:
+        if item not in sintomas_data:
+            sintomas_data.append(item)
+        
+    print(sintomas_data)
+    print(sintomas)
+    print(ultima_tecla_presionada_celular)
     uart = UART(2, 9600)
     now = utime.ticks_ms()
     my_nmea = nmea.nmea(debug=1)
@@ -182,34 +239,33 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
     lat=0
     lng=0
 
-    while 1:
+    bandera_gps=True
+    while bandera_gps:
             oled.fill(0)
             oled.blit(buscar_icono("img/gps.pbm"), 50, 0)  
-            oled.text(f"Pultemsoft",25,40)
+            oled.text(f"Conectando...",25,40)
             oled.show()
 
-            utime.sleep(5)
             while uart.any():
                 b = uart.read()
                 my_nmea.parse(b)
 
-            if utime.ticks_diff(utime.ticks_ms(), now) > 5000:
+            if utime.ticks_diff(utime.ticks_ms(), now) > 1000:
                     now = utime.ticks_ms()
                     print('{} {}'.format(my_nmea.latitude, my_nmea.longitude))
                     lat = my_nmea.latitude
                     lng = my_nmea.longitude
+
+                    if lat != 0 and lng !=0:
+                        bandera_gps=False
+                        oled.fill(0)
+                        oled.blit(buscar_icono("img/gps.pbm"), 50, 0) 
+                        oled.text("Lat:{}".format(my_nmea.latitude),  0, 45)
+                        oled.text("Lng:{}".format(my_nmea.longitude),  0, 55)
+                        oled.show()
+                        utime.sleep(8)
                     
-                    oled.fill(0)
-                    oled.blit(buscar_icono("img/gps.pbm"), 50, 0) 
-                    oled.text("Lat:{} Lng: {}".format(my_nmea.latitude,my_nmea.longitude),  0, 45)
-                    oled.show()
-                    break
-                
-            else:
-                print("No hay gps ")
-                break
-    
-    
+    print(lat,lng)
 
     while True:
         oled.fill(0)
