@@ -22,7 +22,7 @@ alto=64
 i2c=SoftI2C(scl=Pin(4),sda=Pin(15),freq=100000)
 oled =SH1106_I2C(ancho, alto, i2c)
 # termometro
-i2cTer =SoftI2C(scl=Pin(23), sda=Pin(2),freq = 100000)
+i2cTer =SoftI2C(scl=Pin(2), sda=Pin(23),freq = 100000)
 sensor_temperatura = MLX90614(i2cTer)
 # hcrso4
 sensor_hc = HCSR04(trigger_pin=5, echo_pin=18,echo_timeout_us=1000000)
@@ -233,7 +233,7 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
     lat=0
     lng=0
 
-    bandera_gps=False
+    bandera_gps=True
     
     while bandera_gps:
             oled.fill(0)
@@ -255,7 +255,7 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
                         oled.text("Lat:{}".format(my_nmea.latitude),  0, 45)
                         oled.text("Lng:{}".format(my_nmea.longitude),  0, 55)
                         oled.show()
-                        utime.sleep(8)
+   
     
     if lat==0 and lng==0:
         lat=latitude
@@ -311,7 +311,7 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
 
     uartRitmo = UART(2, 115200)                        
     uartRitmo.init(baudrate=115200, bits=8, parity=None, stop=1, tx=22, rx=21)
-    data=None;
+    data=None
     red=0
     ir=0
     Hr=0
@@ -321,7 +321,6 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
     Pultem_bool=True
     while Pultem_bool:
         data=uartRitmo.read()
-        print(data)
         if data != None:
             data=data.decode().strip()
             cadena=data.split(",")
@@ -351,6 +350,7 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
                 f=(cadena[5]).split("=")
                 SPO2Valid=int(f[1])
                 print(SPO2Valid)
+                SPO2Valid=1
                 if SPO2Valid==1 and HrValid==1:
                     SPO2=67
                     Hr=89
@@ -358,7 +358,6 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
                         if Hr>30 and Hr<=200:
                             Pultem_bool=False
                 print(cadena)
-
                 oled.fill(0)
                 oled.blit(buscar_icono("img/heart.pbm"), 0, 0)  
                 oled.blit(buscar_icono("img/oxigeno.pbm"), 98, 34)  
@@ -377,27 +376,64 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
     # ir =Ir
     # Hr=IR
     # SPO2=Sp02
-
-    url = f"https://us-central1-pultemsoft.cloudfunctions.net/app/api/document/{ultima_tecla_presionada}"
+    SPO2=f"{Hr} BPM"
+    HR="{Hr} BPM"
+    url = f"http://us-central1-pultemsoft.cloudfunctions.net/app/api/document/{ultima_tecla_presionada}"
 
     r = requests.get(url)
     print(r.status_code)
     print(r.json())
-
-    # post
-    # url = "http://us-central1-pultemsoft.cloudfunctions.net/app/api/users"
-    # data = {
-    # "name":"Daniel",
-    # "lat":9.6676,
-    # "lng":-74.5618,
-    # "eps":"26132132lol",
-    # "document":str(10111213)
-    # }
-    # headers = {"Content-Type": "application/json"}
-    # r = requests.post(url,data=json.dumps(data),headers=headers)
-    
-    print(r.status_code)
-    
+    if r.status_code==200:
+        obj={}
+        data_json=r.json()
+        obj=data_json[0]
+        nombre=""
+        for key, value in obj.items():
+            if key=="name":
+                nombre=value
+        # name
+        oled.fill(0)
+        oled.blit(buscar_icono("img/pultemsoft.pbm"), 0, 0)  
+        oled.text(f"Hola: {nombre}",40,0)
+        oled.text(f"Actualizando",40,10)
+        oled.show()
+        utime.sleep(4)
+        urlUpdate=f"http://us-central1-pultemsoft.cloudfunctions.net/app/update/document/{ultima_tecla_presionada}"
+        dataInfo = {
+        "lat":lat,
+        "lng":lng,
+        "phone":ultima_tecla_presionada_celular,
+        "temp":temperatura,
+        "distance":distance,
+        "Ir":ir,
+        "Hr":Hr,
+        "SPO2":SPO2,
+        "illnesses":sintomas_data
+        }
+        headers = {"Content-Type": "application/json"}
+        r = requests.put(urlUpdate,data=json.dumps(dataInfo),headers=headers)
+        print(r.status_code)
+    if r.status_code==500:
+        urlUpdate=f"http://us-central1-pultemsoft.cloudfunctions.net/app/api/users"
+        dataInfo = {
+        "lat":lat,
+        "lng":lng,
+        "phone":ultima_tecla_presionada_celular,
+        "temp":temperatura,
+        "distance":distance,
+        "Ir":ir,
+        "Hr":Hr,
+        "SPO2":SPO2,
+        "illnesses":sintomas_data,
+        "name":ultima_tecla_presionada,
+        "document":ultima_tecla_presionada
+        }
+        headers = {"Content-Type": "application/json"}
+        r = requests.post(urlUpdate,data=json.dumps(dataInfo),headers=headers)
+        oled.fill(0)
+        oled.blit(buscar_icono("img/pultemsoft.pbm"), 0, 0)  
+        oled.text(f"Data enviada",40,10)
+        oled.show()
 
 else:
     print ("Imposible conectar")
