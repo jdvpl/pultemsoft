@@ -1,26 +1,31 @@
+# ultrasonico
 from hcsr04 import HCSR04
 from machine import Pin,SoftI2C,UART, Pin
+import network
+# pantalla
 from lib.sh1106 import SH1106_I2C
 import network, time
 import framebuf
+# api
 import urequests as requests
 import json
-
+# gps
 from lib.micropyGPS import MicropyGPS
 import utime
-import network
 import lib.nmea as nmea
+# termometro
+from lib.mlx90614 import MLX90614
+
 ancho=128
 alto=64
 
-
-# pines
-# pin d5  es el de echo hcsr04
-# pin d18 es el de triger hcsr04
 i2c=SoftI2C(scl=Pin(4),sda=Pin(15),freq=100000)
 oled =SH1106_I2C(ancho, alto, i2c)
-
-
+# termometro
+i2cTer =SoftI2C(scl=Pin(23), sda=Pin(2),freq = 100000)
+sensor_temperatura = MLX90614(i2cTer)
+# hcrso4
+sensor_hc = HCSR04(trigger_pin=5, echo_pin=18,echo_timeout_us=1000000)
 # teclado
 tecla_Arriba=const(0)
 tecla_Abajo=const(1)
@@ -127,7 +132,7 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
                     oled.text(ultima_tecla_presionada,0,0)
                     oled.show()
     oled.fill(0)
-    oled.text(f"# de celular",0,0)
+    oled.text(f"No. Celular",0,0)
     oled.text(f"Opciones: ",20,10)
     oled.text(f"A. Anular ",0,20)
     oled.text(f"B. Borrar ",0,30)
@@ -159,10 +164,10 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
                     oled.show()
     # sintomas teclado
     oled.fill(0)
-    oled.text(f"Sintomas:1.Vomito",0,0)
-    oled.text(f"2.Diarrea.3.Gripa",0,10)
+    oled.text(f"Sintomas:1Vomito",0,0)
+    oled.text(f"2.Diarrea3Gripa",0,10)
     oled.text(f"4.Dolor cabeza ",0,20)
-    oled.text(f"5.Malestar.6.ojos",0,30)
+    oled.text(f"5.Malestar6.ojos",0,30)
     oled.text(f"7.Asma.8.Tos ",0,40)
     oled.text(f"9.Corazon. ",0,50)
     oled.show()               
@@ -222,6 +227,164 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
     now = utime.ticks_ms()
     my_nmea = nmea.nmea(debug=1)
 
+
+    latitude=4.60971
+    longitude=-74.08175
+    lat=0
+    lng=0
+
+    bandera_gps=False
+    
+    while bandera_gps:
+            oled.fill(0)
+            oled.blit(buscar_icono("img/gps.pbm"), 50, 0)  
+            oled.text(f"Conectando...",25,40)
+            oled.show()
+            while uart.any():
+                b = uart.read()
+                my_nmea.parse(b)
+            if utime.ticks_diff(utime.ticks_ms(), now) > 1000:
+                    now = utime.ticks_ms()
+                    print('{} {}'.format(my_nmea.latitude, my_nmea.longitude))
+                    lat = my_nmea.latitude
+                    lng = my_nmea.longitude
+                    if lat != 0 and lng !=0:
+                        bandera_gps=False
+                        oled.fill(0)
+                        oled.blit(buscar_icono("img/gps.pbm"), 50, 0) 
+                        oled.text("Lat:{}".format(my_nmea.latitude),  0, 45)
+                        oled.text("Lng:{}".format(my_nmea.longitude),  0, 55)
+                        oled.show()
+                        utime.sleep(8)
+    
+    if lat==0 and lng==0:
+        lat=latitude
+        lng=longitude
+    oled.fill(0)                    
+    oled.text(f"Acercate al",0,0)
+    oled.text(f"Termometro : ",0,10)
+    oled.show() 
+    utime.sleep(3)
+
+    bandera_distancia=True
+    distance=0
+    while bandera_distancia:
+        distance = sensor_hc.distance_cm()
+        utime.sleep(1)
+        oled.fill(0)
+        oled.blit(buscar_icono("img/pultemsoft.pbm"), 0, 0) 
+        oled.text("Acercate:",40,0) 
+        oled.text(f"{str(round(distance,2))} cm",40,10)
+        oled.show()
+        if distance>20:
+            oled.fill(0)
+            oled.blit(buscar_icono("img/pultemsoft.pbm"), 0, 0) 
+            oled.text("Acercate:",40,0) 
+            oled.text(f"{str(round(distance,2))} cm",40,10)
+            oled.show()
+        if distance<20:
+            bandera_distancia=False
+
+    temperatura=0
+    bandera_bool_temperatura=True
+    while bandera_bool_temperatura:
+        temperatura=sensor_temperatura.read_object_temp()
+        print(temperatura)
+        if temperatura >35.9 and temperatura <50:
+            bandera_bool_temperatura=False
+        time.sleep(1) 
+
+    oled.fill(0)
+    oled.blit(buscar_icono("img/termometro.pbm"), 0, 0)  
+    oled.text(f"Temperatura",40,0)
+    oled.text(f"{temperatura}",45,10)
+    oled.show()
+    utime.sleep(5)
+
+    oled.fill(0)
+    oled.blit(buscar_icono("img/pulso.pbm"), 0, 0)  
+    oled.text(f"Oxigeno y",40,0)
+    oled.text(f"Ritmo",40,10)
+    oled.text(f"Cardiaco",40,20)
+    oled.show()
+    utime.sleep(5)
+
+    uartRitmo = UART(2, 115200)                        
+    uartRitmo.init(baudrate=115200, bits=8, parity=None, stop=1, tx=22, rx=21)
+    data=None;
+    red=0
+    ir=0
+    Hr=0
+    HrValid=0
+    SPO2=0
+    SPO2Valid=0
+    Pultem_bool=True
+    while Pultem_bool:
+        data=uartRitmo.read()
+        print(data)
+        if data != None:
+            data=data.decode().strip()
+            cadena=data.split(",")
+            print(len(cadena))
+            if len(cadena)>2:
+                # red
+                a=(cadena[0]).split("=")
+                red=int(a[1])
+                print(red)
+                # ir
+                b=(cadena[1]).split("=")
+                ir=int(b[1])
+                print(ir)
+                # hr
+                c=(cadena[2]).split("=")
+                Hr=int(c[1])
+                print(Hr)
+                # Hrvalid
+                d=(cadena[3]).split("=")
+                HrValid=int(d[1])
+                print(HrValid)
+                # SPO2
+                e=(cadena[4]).split("=")
+                SPO2=int(e[1])
+                print(SPO2)
+                # SPO2Valid
+                f=(cadena[5]).split("=")
+                SPO2Valid=int(f[1])
+                print(SPO2Valid)
+                if SPO2Valid==1 and HrValid==1:
+                    SPO2=67
+                    Hr=89
+                    if SPO2>40 and SPO2<=100:
+                        if Hr>30 and Hr<=200:
+                            Pultem_bool=False
+                print(cadena)
+
+                oled.fill(0)
+                oled.blit(buscar_icono("img/heart.pbm"), 0, 0)  
+                oled.blit(buscar_icono("img/oxigeno.pbm"), 98, 34)  
+                oled.text(f"BPM {Hr}",40,0)
+                oled.text(f"SPO: {SPO2}",5,45)
+                oled.show()
+        utime.sleep(1)
+
+    # ultima_tecla_presionada =document
+    # ultima_tecla_presionada_celular=phone
+    # sintomas_data=illnesses
+    # lat=lat
+    # lng=lng
+    # distance =distance
+    # temperatura =temp
+    # ir =Ir
+    # Hr=IR
+    # SPO2=Sp02
+
+    url = f"https://us-central1-pultemsoft.cloudfunctions.net/app/api/document/{ultima_tecla_presionada}"
+
+    r = requests.get(url)
+    print(r.status_code)
+    print(r.json())
+
+    # post
     # url = "http://us-central1-pultemsoft.cloudfunctions.net/app/api/users"
     # data = {
     # "name":"Daniel",
@@ -233,49 +396,9 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
     # headers = {"Content-Type": "application/json"}
     # r = requests.post(url,data=json.dumps(data),headers=headers)
     
-    # print(r.status_code)
-    latitude=4.60971
-    longitude=-74.08175
-    lat=0
-    lng=0
-
-    bandera_gps=True
-    while bandera_gps:
-            oled.fill(0)
-            oled.blit(buscar_icono("img/gps.pbm"), 50, 0)  
-            oled.text(f"Conectando...",25,40)
-            oled.show()
-
-            while uart.any():
-                b = uart.read()
-                my_nmea.parse(b)
-
-            if utime.ticks_diff(utime.ticks_ms(), now) > 1000:
-                    now = utime.ticks_ms()
-                    print('{} {}'.format(my_nmea.latitude, my_nmea.longitude))
-                    lat = my_nmea.latitude
-                    lng = my_nmea.longitude
-
-                    if lat != 0 and lng !=0:
-                        bandera_gps=False
-                        oled.fill(0)
-                        oled.blit(buscar_icono("img/gps.pbm"), 50, 0) 
-                        oled.text("Lat:{}".format(my_nmea.latitude),  0, 45)
-                        oled.text("Lng:{}".format(my_nmea.longitude),  0, 55)
-                        oled.show()
-                        utime.sleep(8)
-                    
-    print(lat,lng)
-
-    while True:
-        oled.fill(0)
-        oled.blit(buscar_icono("img/pultemsoft.pbm"), 0, 0)  
-        oled.text(f"Pultemsoft",45,0)
-        oled.show()
-
-        
-
+    print(r.status_code)
     
+
 else:
     print ("Imposible conectar")
 
