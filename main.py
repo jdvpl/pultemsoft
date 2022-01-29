@@ -16,9 +16,9 @@ import lib.nmea as nmea
 # termometro
 from lib.mlx90614 import MLX90614
 
+# pantalla oled
 ancho=128
 alto=64
-
 i2c=SoftI2C(scl=Pin(4),sda=Pin(15),freq=100000)
 oled =SH1106_I2C(ancho, alto, i2c)
 # termometro
@@ -27,9 +27,9 @@ sensor_temperatura = MLX90614(i2cTer)
 # hcrso4
 sensor_hc = HCSR04(trigger_pin=5, echo_pin=18,echo_timeout_us=1000000)
 # teclado
-tecla_Arriba=const(0)
-tecla_Abajo=const(1)
-
+tecla_Arriba=const(0) #apagado
+tecla_Abajo=const(1) #encendido
+# teclado
 teclas=[
     ['1','2','3','A'],
     ['4','5','6','B'],
@@ -38,22 +38,27 @@ teclas=[
     ]
 
 # pines usado para las filas
+# config del teclado
 filas=[13,12,14,27]
 columnas=[26,25,33,32]
-
 fila_pines=[Pin(nombre_pin, Pin.OUT) for nombre_pin in filas]
-
 columna_pines=[Pin(nombre_pin, Pin.IN,Pin.PULL_DOWN) for nombre_pin in columnas]
 
+# red wifi
+red_wifi="Jdvpl"
+wifi_password="R@p1df@5t"
 
+# variables
+
+# funcion para recorrer el arreglo de los pines
 def init():
     for fila in range(0,4):
         for columna in range(0,4):
             fila_pines[fila].on()
 
+# esclanea el valor que se usa
 def scan(fila, columna):
     # Escane todo el teclado
-
     # define la tecla actual
     fila_pines[fila].on()
     tecla=None
@@ -65,6 +70,7 @@ def scan(fila, columna):
     fila_pines[fila].off()
     return tecla
 
+# funcion para mostrar imagen
 def buscar_icono(ruta):
     dibujo= open(ruta, "rb")  # Abrir en modo lectura de bist
     dibujo.readline() # metodo para ubicarse en la primera linea de los bist
@@ -74,7 +80,7 @@ def buscar_icono(ruta):
     icono = bytearray(dibujo.read())  # guardar en matriz de bites
     dibujo.close()
     return framebuf.FrameBuffer(icono, x, y, framebuf.MONO_HLSB)
-
+# conecion a internet
 def conectaWifi (red, password):
     global miRed
     miRed = network.WLAN(network.STA_IF)     
@@ -94,9 +100,9 @@ def conectaWifi (red, password):
     return True
 
 
-
-if conectaWifi ("Jdvpl", "R@p1df@5t"):
-    print ("Conexión exitosa!")
+def main():
+    if conectaWifi (red_wifi,wifi_password):
+        print ("Conexión exitosa!")
     print('Datos de la red (IP/netmask/gw/DNS):', miRed.ifconfig())
 
     init();
@@ -233,7 +239,7 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
     lat=0
     lng=0
 
-    bandera_gps=True
+    bandera_gps=False # se deja falso ya que aveces la conexion es muy baja
     
     while bandera_gps:
             oled.fill(0)
@@ -256,7 +262,7 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
                         oled.text("Lng:{}".format(my_nmea.longitude),  0, 55)
                         oled.show()
    
-    
+    #es por si la latitud y longitud es 0 ya que aveces el gps no es muy estable con la señal
     if lat==0 and lng==0:
         lat=latitude
         lng=longitude
@@ -435,14 +441,20 @@ if conectaWifi ("Jdvpl", "R@p1df@5t"):
         oled.text(f"Data enviada",40,10)
         oled.show()
 
-else:
-    print ("Imposible conectar")
+    else:
+        print ("Imposible conectar")
 
-    miRed.active (False)
-    oled.fill(0)
-    oled.blit(buscar_icono("img/wifi_failed.pbm"), 50, 0)
-    oled.text(f'Error en la red.',0,35)
-    oled.show()
+        miRed.active (False)
+        oled.fill(0)
+        oled.blit(buscar_icono("img/wifi_failed.pbm"), 50, 0)
+        oled.text(f'Error en la red.',0,35)
+        oled.show()
+
+
+if __name__ == '__main__':
+    main()
+    
+
 
 
 
