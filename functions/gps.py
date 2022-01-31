@@ -16,7 +16,7 @@ def gps(oled,setImage,gpsBandera=False):
     while gpsBandera:
             oled.fill(0)
             oled.blit(setImage("../img/gps.pbm"), 50, 0)  
-            oled.text(f"Conectando...",25,40)
+            oled.text(f"Conectando...",12,40)
             oled.show()
             while uart.any():
                 b = uart.read()

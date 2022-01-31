@@ -36,13 +36,19 @@ def setDataOledOfKeyPad(oledsh,scanKeys,tecla_Abajo,teclas,arreglo=False):
                         if datatecla=="5":
                             sintomas.append("Malestar ")
                         if datatecla=="6":
-                            sintomas.append("ojos ")
+                            sintomas.append("Dolor huesos ")
                         if datatecla=="7":
                             sintomas.append("Asma ")
                         if datatecla=="8":
                             sintomas.append("Covid ")
                         if datatecla=="9":
                             sintomas.append("Corazon ")
+                        if datatecla=="0":
+                            sintomas.append("Tos ")
+                        if datatecla=="*":
+                            sintomas.append("Cancer ")
+                        if datatecla=="#":
+                            sintomas.append("Ebola ")
                     oledsh.fill(0)
                     oledsh.text(data_teclado,0,0)
                     oledsh.show()

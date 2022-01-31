@@ -1,25 +1,26 @@
 # ultrasonico
-from hcsr04 import HCSR04
 from machine import Pin,SoftI2C,UART, Pin
-# pantalla
+# librerias
 from lib.sh1106 import SH1106_I2C
-
-from functions.seticon import setImage
-from functions.conexionWifi import conectaWifi
+from lib.mlx90614 import MLX90614
+from hcsr04 import HCSR04
 # api
 import urequests as requests
 import json
 import utime
-
 # termometro
-from lib.mlx90614 import MLX90614
 from functions.data_conection import red_wifi, wifi_password
-
 from functions.keypad import initKeypad,scanKeys,teclas,tecla_Abajo
 from functions.setDataOledOfKeyPad import setDataOledOfKeyPad
 from functions.gps import gps
 from functions.distance import distance
 from functions.data_oled import dataOled
+from functions.conexionWifi import conectaWifi
+from functions.seticon import setImage
+from functions.temperature import temperature
+from functions.oximetro import oximetro
+# textos de la pantalla
+from functions.data_show import bienvenido,statusIconWifi,menuSImple, sintomasDataMenu,acercate_termoemtro,show_data_temperature,ritmo_cardiaco
 # pantalla oled
 ancho=128
 alto=64
@@ -31,160 +32,55 @@ sensor_temperatura = MLX90614(i2cTer)
 # hcrso4
 sensor_hc = HCSR04(trigger_pin=5, echo_pin=18,echo_timeout_us=1000000)
 
+
+time_icon=3
+
 def oledStatusIcon():
-    oled.fill(0)
-    oled.blit(setImage("img/wifi.pbm"), 50, 0)
-    oled.text(f'Conectando {red_wifi}...',0,35)
-    oled.show()
-    utime.sleep(3)
-
-def oledMenu(data):
-    oled.fill(0)
-    oled.text(f"Escribe {data}",0,0)
-    oled.text(f"Opciones: ",20,10)
-    oled.text(f"A. Anular ",0,20)
-    oled.text(f"B. Borrar ",0,30)
-    oled.text(f"C. Confirmar ",0,40)
-    oled.show()
-
-def oledSintomas():
-    oled.fill(0)
-    oled.text(f"Sintomas:1Vomito",0,0)
-    oled.text(f"2.Diarrea.3Gripa",0,10)
-    oled.text(f"4.Dolor cabeza ",0,20)
-    oled.text(f"5.Malestar.6ojos",0,30)
-    oled.text(f"7.Asma.8.covid ",0,40)
-    oled.text(f"9.Corazon. ",0,50)
-    oled.show()
-
-
+    dataOled(oled,setImage,statusIconWifi(red_wifi))
+    utime.sleep(time_icon)
 
 def main():
-    bienvenido=[
-        {
-            "text":"Pultemsoft",
-            "x":35, 
-            "y":10
-        },
-        {
-            "image":"img/pultemsoft.pbm",
-            "x":0,
-            "y":0
-        }
-    ]
+    
     dataOled(oled,setImage,bienvenido)
-
-    utime.sleep(10)
+    utime.sleep(time_icon)
     if conectaWifi (red_wifi,wifi_password,oledStatusIcon):
         print ("Conexión exitosa!")
         # llamar funcion para leer las teclas
         initKeypad();
         # mostrar menu de la cedula
-        oledMenu("Cedula") 
+        dataOled(oled,setImage,menuSImple("cedula")) 
         # guarda lo que escribio del teclado
         cedula=setDataOledOfKeyPad(oled,scanKeys,tecla_Abajo,teclas)
         # menu del celular
-        oledMenu("Celular") 
+        dataOled(oled,setImage,menuSImple("celular")) 
         celular=setDataOledOfKeyPad(oled,scanKeys,tecla_Abajo,teclas)
         # menu de los sintomas
-        oledSintomas()
+        dataOled(oled,setImage,sintomasDataMenu) 
         sintomas=setDataOledOfKeyPad(oled,scanKeys,tecla_Abajo,teclas,True)
-        print(sintomas,cedula,celular)
+        print(sintomas)
         data=gps(oled,setImage,False);
         lat=data[0]
         lng=data[1]
-        print(lat,lng)
-        
+        dataOled(oled,setImage,acercate_termoemtro)
+
         distancia=distance(oled,setImage,sensor_hc)
+        # texto de acercarse
+        # temperatura
+        temperatura=temperature(sensor_temperatura)
+        dataOled(oled,setImage,show_data_temperature(temperatura));
+        utime.sleep(time_icon)
+        # ole ritmo cardiaco
+        dataOled(oled,setImage,ritmo_cardiaco);
+        utime.sleep(time_icon)
 
-        print(distancia)
-
-        oled.fill(0)                    
-        oled.text(f"Acercate al",0,0)
-        oled.text(f"Termometro : ",0,10)
-        oled.show() 
-        utime.sleep(3)
-
-        temperatura=0
-        bandera_bool_temperatura=True
-        while bandera_bool_temperatura:
-            temperatura=sensor_temperatura.read_object_temp()
-            print(temperatura)
-            if temperatura >35.9 and temperatura <50:
-                bandera_bool_temperatura=False
-            utime.sleep(1) 
-
-        oled.fill(0)
-        oled.blit(setImage("img/termometro.pbm"), 0, 0)  
-        oled.text(f"Temperatura",40,0)
-        oled.text(f"{temperatura}",45,10)
-        oled.show()
-        utime.sleep(5)
-
-        oled.fill(0)
-        oled.blit(setImage("img/pulso.pbm"), 0, 0)  
-        oled.text(f"Oxigeno y",40,0)
-        oled.text(f"Ritmo",40,10)
-        oled.text(f"Cardiaco",40,20)
-        oled.show()
-        utime.sleep(5)
-
+        # oximetro
         uartRitmo = UART(2, 115200)                        
         uartRitmo.init(baudrate=115200, bits=8, parity=None, stop=1, tx=22, rx=21)
-        data=None
-        red=0
-        ir=0
-        Hr=0
-        HrValid=0
-        SPO2=0
-        SPO2Valid=0
-        Pultem_bool=True
-        while Pultem_bool:
-            data=uartRitmo.read()
-            if data != None:
-                data=data.decode().strip()
-                cadena=data.split(",")
-                print(len(cadena))
-                if len(cadena)>2:
-                    # red
-                    a=(cadena[0]).split("=")
-                    red=int(a[1])
-                    print(red)
-                    # ir
-                    b=(cadena[1]).split("=")
-                    ir=int(b[1])
-                    print(ir)
-                    # hr
-                    c=(cadena[2]).split("=")
-                    Hr=int(c[1])
-                    print(Hr)
-                    # Hrvalid
-                    d=(cadena[3]).split("=")
-                    HrValid=int(d[1])
-                    print(HrValid)
-                    # SPO2
-                    e=(cadena[4]).split("=")
-                    SPO2=int(e[1])
-                    print(SPO2)
-                    # SPO2Valid
-                    f=(cadena[5]).split("=")
-                    SPO2Valid=int(f[1])
-                    print(SPO2Valid)
-                    SPO2Valid=1
-                    if SPO2Valid==1 and HrValid==1:
-                        SPO2=67
-                        Hr=89
-                        if SPO2>40 and SPO2<=100:
-                            if Hr>30 and Hr<=200:
-                                Pultem_bool=False
-                    print(cadena)
-                    oled.fill(0)
-                    oled.blit(setImage("img/heart.pbm"), 0, 0)  
-                    oled.blit(setImage("img/oxigeno.pbm"), 98, 34)  
-                    oled.text(f"BPM {Hr}",40,0)
-                    oled.text(f"SPO: {SPO2}",5,45)
-                    oled.show()
-            utime.sleep(1)
+        
+        dataOxime=oximetro(uartRitmo,oled,setImage)
+        SPO2=dataOxime[0]
+        Hr=dataOxime[1]
+        ir=dataOxime[2]
 
         # ultima_tecla_presionada =document
         # ultima_tecla_presionada_celular=phone
@@ -196,8 +92,8 @@ def main():
         # ir =Ir
         # Hr=IR
         # SPO2=Sp02
-        SPO2=f"{Hr} BPM"
-        HR="{Hr} BPM"
+        SPO2=f"{SPO2}% "
+        Hr=f"{Hr} BPM"
         url = f"http://us-central1-pultemsoft.cloudfunctions.net/app/api/document/{cedula}"
 
         r = requests.get(url)
@@ -223,11 +119,11 @@ def main():
             "lat":lat,
             "lng":lng,
             "phone":celular,
-            "temp":temperatura,
+            "temp":str(temperatura),
             "distance":distancia,
-            "Ir":ir,
-            "Hr":Hr,
-            "SPO2":SPO2,
+            "ir":ir,
+            "hr":Hr,
+            "spo2":SPO2,
             "illnesses":sintomas
             }
             headers = {"Content-Type": "application/json"}
@@ -239,11 +135,11 @@ def main():
             "lat":lat,
             "lng":lng,
             "phone":celular,
-            "temp":temperatura,
+            "temp":str(temperatura),
             "distance":distancia,
-            "Ir":ir,
-            "Hr":Hr,
-            "SPO2":SPO2,
+            "ir":ir,
+            "hr":Hr,
+            "spo2":SPO2,
             "illnesses":sintomas,
             "name":cedula,
             "document":cedula
