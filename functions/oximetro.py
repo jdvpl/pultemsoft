@@ -1,7 +1,11 @@
 
 import utime
+from machine import UART
+def oximetro(oled,setImage):
 
-def oximetro(uartRitmo,oled,setImage):
+    # oximetro
+    uartRitmo = UART(2, 115200)                        
+    uartRitmo.init(baudrate=115200, bits=8, parity=None, stop=1, tx=22, rx=21)
     data=None
     red=0
     ir=0
